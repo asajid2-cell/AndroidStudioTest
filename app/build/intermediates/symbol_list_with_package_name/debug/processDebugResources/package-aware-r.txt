@@ -3395,6 +3395,7 @@ id clip_horizontal
 id clip_vertical
 id clockwise
 id closePlayerBtn
+id closeSourcesBtn
 id closest
 id collapseActionView
 id compress
@@ -4115,6 +4116,7 @@ string bottomsheet_action_expand_halfway
 string bottomsheet_drag_handle_clicked
 string bottomsheet_drag_handle_content_description
 string btn_back
+string btn_close
 string btn_detect_video
 string btn_open_site
 string call_notification_answer_action

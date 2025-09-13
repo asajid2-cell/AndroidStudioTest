@@ -17,6 +17,7 @@ id action_open_external
 id action_refresh
 id adblockSwitch
 id closePlayerBtn
+id closeSourcesBtn
 id detectBtn
 id emptyText
 id openBtn
@@ -38,6 +39,7 @@ menu top_app_bar_menu
 raw adblock_domains
 string app_name
 string btn_back
+string btn_close
 string btn_detect_video
 string btn_open_site
 string disclaimer

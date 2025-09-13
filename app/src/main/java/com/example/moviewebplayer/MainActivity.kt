@@ -9,6 +9,8 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
+import android.webkit.ServiceWorkerClient
+import android.webkit.ServiceWorkerController
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
@@ -129,6 +131,22 @@ class MainActivity : ComponentActivity() {
             }
         }
         wv.addJavascriptInterface(VideoSniffer(), "AndroidBridge")
+
+        // Service Worker intercept to see requests initiated by SW (often used by modern sites)
+        try {
+            val sw = ServiceWorkerController.getInstance()
+            sw.setServiceWorkerClient(object : ServiceWorkerClient() {
+                override fun shouldInterceptRequest(request: WebResourceRequest): WebResourceResponse? {
+                    request.url?.toString()?.let { url ->
+                        if (isVideoLike(url)) maybeAddSource(url)
+                    }
+                    if (adblockEnabled && adBlocker.shouldBlock(request.url)) {
+                        return WebResourceResponse("text/plain", "utf-8", 403, "Blocked", mapOf(), java.io.ByteArrayInputStream(ByteArray(0)))
+                    }
+                    return null
+                }
+            })
+        } catch (_: Throwable) { }
 
         // ExoPlayer with custom HTTP factory (Referer & UA)
         httpFactory = DefaultHttpDataSource.Factory()
@@ -403,6 +421,34 @@ class MainActivity : ComponentActivity() {
                 var l = u.toLowerCase();
                 return l.includes('.m3u8') || l.includes('.mpd') || l.includes('.mp4') || l.includes('.webm') || l.includes('.m4v') || l.includes('.mov') || l.includes('.m3u') || l.includes('.ogg');
               }
+              function extractUrlsFromText(t){
+                if(!t) return [];
+                var out = [];
+                try {
+                  var re = /(https?:\/\/[\w\-./?=&%#:+]+\.(?:m3u8|mpd|mp4|webm|m4v|mov|ogg))/ig;
+                  var m; while((m = re.exec(t))!==null){ out.push(m[1]); }
+                } catch(e){}
+                return out;
+              }
+              function parseM3U8(text, base){
+                try {
+                  var lines = text.split(/\r?\n/);
+                  var urls=[];
+                  for (var i=0;i<lines.length;i++){
+                    var ln = lines[i].trim();
+                    if (!ln || ln[0]==='#') continue;
+                    if (!/^https?:/i.test(ln)) { try { ln = new URL(ln, base).toString(); } catch(e){}
+                    }
+                    urls.push(ln);
+                  }
+                  return urls;
+                } catch(e){ return []; }
+              }
+              function parseMPD(text, base){
+                var urls=[];
+                try { urls = urls.concat(extractUrlsFromText(text)); } catch(e){}
+                return urls;
+              }
               var set = new Set();
               function push(u){
                 var n = norm(u);
@@ -476,7 +522,7 @@ class MainActivity : ComponentActivity() {
                 var m; while((m = re.exec(html))!==null){ push(m[1]); }
               } catch(e){}
 
-              // 6) Monkey-patch fetch and XHR
+              // 6) Monkey-patch fetch and XHR + parse manifests when possible
               try {
                 if (!window.__mwpHooked) {
                   window.__mwpHooked = true;
@@ -492,6 +538,16 @@ class MainActivity : ComponentActivity() {
                           var url = resp && resp.url; push(url);
                           var ct = resp && resp.headers && resp.headers.get && resp.headers.get('content-type');
                           if (ct && /video|mpegurl|dash|application\/vnd\.apple\.mpegurl/i.test(ct)) push(resp.url);
+                          // Try clone and parse manifests (CORS permitting)
+                          if (ct && /mpegurl|vnd\.apple\.mpegurl/i.test(ct)) {
+                            resp.clone().text().then(function(txt){
+                               try { parseM3U8(txt, url).forEach(push); } catch(e){}
+                            }).catch(function(){});
+                          } else if (ct && /dash|mpd\b|application\/dash\+xml/i.test(ct)) {
+                            resp.clone().text().then(function(txt){
+                               try { parseMPD(txt, url).forEach(push); } catch(e){}
+                            }).catch(function(){});
+                          }
                         } catch(e){}
                         return resp;
                       });
@@ -500,6 +556,25 @@ class MainActivity : ComponentActivity() {
                   var X= window.XMLHttpRequest; if (X) {
                     var open = X.prototype.open;
                     X.prototype.open = function(method, url){ push(url); return open.apply(this, arguments); };
+                    var send = X.prototype.send;
+                    X.prototype.send = function(){
+                      try {
+                        this.addEventListener('load', function(){
+                          try {
+                            var ct = (this.getResponseHeader && this.getResponseHeader('content-type')) || '';
+                            var url = this.responseURL || '';
+                            if (/mpegurl|vnd\.apple\.mpegurl/i.test(ct)) {
+                               try { parseM3U8(this.responseText||'', url).forEach(push); } catch(e){}
+                            } else if (/dash|mpd\b|application\/dash\+xml/i.test(ct)) {
+                               try { parseMPD(this.responseText||'', url).forEach(push); } catch(e){}
+                            } else {
+                               extractUrlsFromText(this.responseText||'').forEach(push);
+                            }
+                          } catch(e){}
+                        }, { once:true });
+                      } catch(e){}
+                      return send.apply(this, arguments);
+                    }
                   }
 
                   // Hook media src assignment

@@ -8,15 +8,15 @@
         "source": "C:\\Users\\Ahmed\\.gradle\\daemon\\9.0-milestone-1\\com.example.moviewebplayer.app-main-42:\\layout\\activity_main.xml"
     },
     {
-        "merged": "com.example.moviewebplayer.app-debug-40:/menu_top_app_bar_menu.xml.flat",
-        "source": "com.example.moviewebplayer.app-main-42:/menu/top_app_bar_menu.xml"
-    },
-    {
         "merged": "C:\\Users\\Ahmed\\.gradle\\daemon\\9.0-milestone-1\\com.example.moviewebplayer.app-debug-40:\\raw_adblock_domains.txt.flat",
         "source": "C:\\Users\\Ahmed\\.gradle\\daemon\\9.0-milestone-1\\com.example.moviewebplayer.app-main-42:\\raw\\adblock_domains.txt"
     },
     {
         "merged": "C:\\Users\\Ahmed\\.gradle\\daemon\\9.0-milestone-1\\com.example.moviewebplayer.app-debug-40:\\drawable_bg_bubbles.xml.flat",
         "source": "C:\\Users\\Ahmed\\.gradle\\daemon\\9.0-milestone-1\\com.example.moviewebplayer.app-main-42:\\drawable\\bg_bubbles.xml"
+    },
+    {
+        "merged": "C:\\Users\\Ahmed\\.gradle\\daemon\\9.0-milestone-1\\com.example.moviewebplayer.app-debug-40:\\menu_top_app_bar_menu.xml.flat",
+        "source": "C:\\Users\\Ahmed\\.gradle\\daemon\\9.0-milestone-1\\com.example.moviewebplayer.app-main-42:\\menu\\top_app_bar_menu.xml"
     }
 ]

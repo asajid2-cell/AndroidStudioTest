@@ -38,6 +38,9 @@ public final class ActivityMainBinding implements ViewBinding {
   public final MaterialButton closePlayerBtn;
 
   @NonNull
+  public final MaterialButton closeSourcesBtn;
+
+  @NonNull
   public final MaterialButton detectBtn;
 
   @NonNull
@@ -86,18 +89,19 @@ public final class ActivityMainBinding implements ViewBinding {
   public final WebView webView;
 
   private ActivityMainBinding(@NonNull FrameLayout rootView, @NonNull MaterialSwitch adblockSwitch,
-      @NonNull MaterialButton closePlayerBtn, @NonNull MaterialButton detectBtn,
-      @NonNull TextView emptyText, @NonNull MaterialButton openBtn,
-      @NonNull ProgressBar pageProgress, @NonNull FrameLayout playerOverlay,
-      @NonNull PlayerView playerView, @NonNull RecyclerView sourcesList,
-      @NonNull MaterialCardView sourcesPanel, @NonNull TextView sourcesTitle,
-      @NonNull SwipeRefreshLayout swipeRefresh, @NonNull TabLayout tabLayout,
-      @NonNull MaterialToolbar topAppBar, @NonNull TextInputEditText urlInput,
-      @NonNull TextInputLayout urlInputLayout, @NonNull FrameLayout webContainer,
-      @NonNull WebView webView) {
+      @NonNull MaterialButton closePlayerBtn, @NonNull MaterialButton closeSourcesBtn,
+      @NonNull MaterialButton detectBtn, @NonNull TextView emptyText,
+      @NonNull MaterialButton openBtn, @NonNull ProgressBar pageProgress,
+      @NonNull FrameLayout playerOverlay, @NonNull PlayerView playerView,
+      @NonNull RecyclerView sourcesList, @NonNull MaterialCardView sourcesPanel,
+      @NonNull TextView sourcesTitle, @NonNull SwipeRefreshLayout swipeRefresh,
+      @NonNull TabLayout tabLayout, @NonNull MaterialToolbar topAppBar,
+      @NonNull TextInputEditText urlInput, @NonNull TextInputLayout urlInputLayout,
+      @NonNull FrameLayout webContainer, @NonNull WebView webView) {
     this.rootView = rootView;
     this.adblockSwitch = adblockSwitch;
     this.closePlayerBtn = closePlayerBtn;
+    this.closeSourcesBtn = closeSourcesBtn;
     this.detectBtn = detectBtn;
     this.emptyText = emptyText;
     this.openBtn = openBtn;
@@ -152,6 +156,12 @@ public final class ActivityMainBinding implements ViewBinding {
       id = R.id.closePlayerBtn;
       MaterialButton closePlayerBtn = ViewBindings.findChildViewById(rootView, id);
       if (closePlayerBtn == null) {
+        break missingId;
+      }
+
+      id = R.id.closeSourcesBtn;
+      MaterialButton closeSourcesBtn = ViewBindings.findChildViewById(rootView, id);
+      if (closeSourcesBtn == null) {
         break missingId;
       }
 
@@ -252,9 +262,9 @@ public final class ActivityMainBinding implements ViewBinding {
       }
 
       return new ActivityMainBinding((FrameLayout) rootView, adblockSwitch, closePlayerBtn,
-          detectBtn, emptyText, openBtn, pageProgress, playerOverlay, playerView, sourcesList,
-          sourcesPanel, sourcesTitle, swipeRefresh, tabLayout, topAppBar, urlInput, urlInputLayout,
-          webContainer, webView);
+          closeSourcesBtn, detectBtn, emptyText, openBtn, pageProgress, playerOverlay, playerView,
+          sourcesList, sourcesPanel, sourcesTitle, swipeRefresh, tabLayout, topAppBar, urlInput,
+          urlInputLayout, webContainer, webView);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));
