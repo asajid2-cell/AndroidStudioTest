@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">Movie Web Player</string>
+    <string name="hint_enter_url">Enter website or direct video URL</string>
+    <string name="btn_open_site">Open Site</string>
+    <string name="btn_detect_video">Detect Video</string>
+    <string name="btn_back">Back</string>
+    <string name="empty_sources">No playable HTML5 video sources found.</string>
+    <string name="disclaimer">This app only detects standard HTML5 video sources on pages you open. It does not bypass DRM, paywalls, or site restrictions. Some sites (e.g., DRM-protected or proprietary players) will not expose playable URLs.</string>
+    <string name="label_adblock">Adblock</string>
+    <string name="btn_close">Close</string>
+</resources>

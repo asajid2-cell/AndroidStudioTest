@@ -1,0 +1,14 @@
+<resources>
+    <color name="md_theme_primary">#8B5CF6</color>
+    <color name="md_theme_onPrimary">#FFFFFF</color>
+    <color name="md_theme_secondary">#06B6D4</color>
+    <color name="md_theme_tertiary">#F97316</color>
+    <color name="md_theme_background">#0F1020</color>
+    <color name="md_theme_surface">#13142A</color>
+    <color name="md_theme_onSurface">#F1F5F9</color>
+    <color name="bubble_pink">#FF5FA2</color>
+    <color name="bubble_purple">#8A4FFF</color>
+    <color name="bubble_cyan">#2DD4BF</color>
+    <color name="bubble_orange">#FB923C</color>
+</resources>
+
