@@ -24,8 +24,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ui.PlayerView
-import com.google.android.exoplayer2.source.DefaultMediaSourceFactory
-import com.google.android.exoplayer2.upstream.DefaultHttpDataSource
 import com.example.moviewebplayer.databinding.ActivityMainBinding
 import com.google.android.material.tabs.TabLayout
 import org.json.JSONArray
@@ -41,8 +39,6 @@ class MainActivity : ComponentActivity() {
     private val sourcesAdapter = SourcesAdapter { url ->
         playUrl(url)
     }
-    private var httpFactory: DefaultHttpDataSource.Factory? = null
-    private var currentPageUrl: String? = null
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,6 +57,12 @@ class MainActivity : ComponentActivity() {
         binding.adblockSwitch.setOnCheckedChangeListener { _, isChecked ->
             adblockEnabled = isChecked
             prefs.edit { putBoolean("adblock_enabled", adblockEnabled) }
+        }
+
+        // ExoPlayer
+        exoPlayer = ExoPlayer.Builder(this).build().also { player ->
+            val pv: PlayerView = binding.playerView
+            pv.player = player
         }
 
         // WebView setup
@@ -94,14 +96,6 @@ class MainActivity : ComponentActivity() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                 super.onPageStarted(view, url, favicon)
                 binding.detectBtn.isEnabled = false
-                foundSources.clear()
-                currentPageUrl = url
-                try {
-                    httpFactory?.setDefaultRequestProperties(mapOf(
-                        "Referer" to (url ?: ""),
-                        "User-Agent" to wv.settings.userAgentString
-                    ))
-                } catch (_: Throwable) {}
                 binding.pageProgress.visibility = View.VISIBLE
                 binding.pageProgress.progress = 0
             }
@@ -130,21 +124,6 @@ class MainActivity : ComponentActivity() {
         }
         wv.addJavascriptInterface(VideoSniffer(), "AndroidBridge")
 
-        // ExoPlayer with custom HTTP factory (Referer & UA)
-        httpFactory = DefaultHttpDataSource.Factory()
-            .setUserAgent(wv.settings.userAgentString)
-            .setAllowCrossProtocolRedirects(true)
-            .setDefaultRequestProperties(mapOf(
-                "User-Agent" to wv.settings.userAgentString
-            ))
-
-        exoPlayer = ExoPlayer.Builder(this)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(httpFactory!!))
-            .build().also { player ->
-                val pv: PlayerView = binding.playerView
-                pv.player = player
-            }
-
         // Buttons
         binding.openBtn.setOnClickListener {
             val text = binding.urlInput.text?.toString()?.trim().orEmpty()
@@ -157,12 +136,7 @@ class MainActivity : ComponentActivity() {
         }
 
         binding.detectBtn.setOnClickListener {
-            if (binding.sourcesPanel.visibility == View.VISIBLE) {
-                binding.sourcesPanel.visibility = View.GONE
-                binding.tabLayout.getTabAt(0)?.select()
-            } else {
-                detectVideos()
-            }
+            detectVideos()
         }
 
         binding.closePlayerBtn.setOnClickListener {
@@ -180,12 +154,6 @@ class MainActivity : ComponentActivity() {
         binding.swipeRefresh.setOnRefreshListener(SwipeRefreshLayout.OnRefreshListener {
             binding.webView.reload()
         })
-
-        // Close sources panel
-        binding.closeSourcesBtn.setOnClickListener {
-            binding.sourcesPanel.visibility = View.GONE
-            binding.tabLayout.getTabAt(0)?.select()
-        }
 
         // Tabs: Browse and Sources
         binding.tabLayout.apply {
@@ -260,10 +228,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showSources(urls: List<String>) {
-        val ranked = rankSources(urls)
-        sourcesAdapter.submit(ranked)
-        binding.emptyText.visibility = if (ranked.isEmpty()) View.VISIBLE else View.GONE
-        if (ranked.isNotEmpty()) {
+        sourcesAdapter.submit(urls)
+        binding.emptyText.visibility = if (urls.isEmpty()) View.VISIBLE else View.GONE
+        if (urls.isNotEmpty()) {
             binding.sourcesPanel.visibility = View.VISIBLE
             binding.tabLayout.getTabAt(1)?.select()
         }
@@ -322,7 +289,6 @@ class MainActivity : ComponentActivity() {
     private fun maybeAddSource(url: String) {
         if (!isVideoLike(url)) return
         if (url.startsWith("blob:") || url.startsWith("data:")) return
-        if (isLikelyAd(url)) return
         if (foundSources.add(url)) {
             runOnUiThread {
                 showSources(foundSources.toList())
@@ -336,49 +302,6 @@ class MainActivity : ComponentActivity() {
                 u.contains(".mp4") || u.contains(".webm") ||
                 u.contains(".m4v") || u.contains(".mov") ||
                 u.contains(".m3u") || u.contains(".ogg")
-    }
-
-    private fun isLikelyAd(url: String): Boolean {
-        return try {
-            val uri = Uri.parse(url)
-            val host = uri.host?.lowercase() ?: return false
-            if (adBlocker.shouldBlock(uri)) return true
-            val path = (uri.path ?: "").lowercase()
-            val q = (uri.query ?: "").lowercase()
-            val badWords = listOf("/ad", "/ads", "advert", "analytics", "pixel", "impression", "vast", "preroll", "promo", "banner", "doubleclick")
-            if (badWords.any { path.contains(it) || q.contains(it) }) return true
-            false
-        } catch (_: Throwable) { false }
-    }
-
-    private fun rankSources(urls: List<String>): List<String> {
-        val pageHost = try { Uri.parse(currentPageUrl).host?.lowercase() } catch (_: Throwable) { null }
-        fun score(u: String): Int {
-            val l = u.lowercase()
-            var s = 0
-            s += when {
-                l.contains(".m3u8") -> 100
-                l.contains(".mpd") -> 90
-                l.contains(".mp4") -> 80
-                l.contains(".webm") -> 75
-                l.contains(".m4v") -> 70
-                l.contains(".mov") -> 65
-                l.contains(".m3u") -> 60
-                l.contains(".ogg") -> 40
-                else -> 10
-            }
-            if (l.contains("master.m3u8") || l.contains("playlist.m3u8") || l.contains("index.m3u8") || l.contains("hls")) s += 10
-            if (l.contains("segment") || l.contains("chunk") || l.contains("part")) s -= 10
-            if (isLikelyAd(u)) s -= 80
-            if (pageHost != null) {
-                try {
-                    val h = Uri.parse(u).host?.lowercase()
-                    if (h != null && (h == pageHost || h.endsWith(".$pageHost"))) s += 8
-                } catch (_: Throwable) {}
-            }
-            return s
-        }
-        return urls.distinct().sortedByDescending { score(it) }
     }
 
     private fun installAggressiveSniffers() {
@@ -424,8 +347,6 @@ class MainActivity : ComponentActivity() {
                   for(var j=0;j<ss.length;j++){
                     push(ss[j].src);
                     push(ss[j].getAttribute('data-src'));
-                    push(ss[j].getAttribute('data-hls'));
-                    push(ss[j].getAttribute('data-m3u8'));
                   }
                 }
               } catch(e){}
@@ -436,47 +357,7 @@ class MainActivity : ComponentActivity() {
                 for(var i=0;i<as.length;i++) push(as[i].href);
               } catch(e){}
 
-              // 3) Meta tags and JSON-LD
-              try {
-                var metas = document.getElementsByTagName('meta');
-                for (var i=0;i<metas.length;i++){
-                  var name = (metas[i].getAttribute('property')||metas[i].getAttribute('name')||'').toLowerCase();
-                  if (name && (name.indexOf('og:video')===0 || name.indexOf('twitter:player:stream')===0)) {
-                    push(metas[i].getAttribute('content'));
-                  }
-                }
-              } catch(e){}
-
-              try {
-                var scripts = document.querySelectorAll('script[type="application/ld+json"]');
-                for (var i=0;i<scripts.length;i++){
-                  try {
-                    var data = JSON.parse(scripts[i].textContent||'null');
-                    function drill(obj){
-                      if(!obj) return;
-                      if (Array.isArray(obj)) { obj.forEach(drill); return; }
-                      ['contentUrl','embedUrl','url','file','src','playbackUrl','streamUrl'].forEach(function(k){ if(obj[k]) push(obj[k]); });
-                      for (var k in obj){ if (typeof obj[k]==='object') drill(obj[k]); }
-                    }
-                    drill(data);
-                  } catch(e){}
-                }
-              } catch(e){}
-
-              // 4) Preload links
-              try {
-                var links = document.querySelectorAll('link[rel="preload"][as="video"]');
-                for (var i=0;i<links.length;i++) push(links[i].href||links[i].getAttribute('href'));
-              } catch(e){}
-
-              // 5) Regex scan of HTML
-              try {
-                var html = document.documentElement.innerHTML;
-                var re = /(https?:\\/\\/[\w\-./?=&%#:+]+\.(?:m3u8|mpd|mp4|webm|m4v|mov|ogg))(?![\w])/ig;
-                var m; while((m = re.exec(html))!==null){ push(m[1]); }
-              } catch(e){}
-
-              // 6) Monkey-patch fetch and XHR
+              // 3) Monkey-patch fetch and XHR
               try {
                 if (!window.__mwpHooked) {
                   window.__mwpHooked = true;
